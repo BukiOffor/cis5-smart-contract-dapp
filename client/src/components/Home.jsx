@@ -1,7 +1,11 @@
 "use client";
+import {generateKeyPair} from "@/helpers/index"
+import { useRouter } from 'next/navigation';
 
 
 export default function Base(){
+  const router = useRouter();
+
     return (
         <>
             <div className="text-center p-6">
@@ -13,8 +17,12 @@ export default function Base(){
             </p>
             <div className="mt-10 flex items-center justify-center gap-x-6">
               <button
-                onClick={()=>{
-                    alert("Account Created")}
+                onClick={async ()=>{
+                  let keypair = await generateKeyPair();
+                  localStorage.setItem("cis5-keypair", JSON.stringify(keypair));
+                  alert(`Account Created: ${keypair.publicKey}`)
+                  router.push('/wallet')
+                  }
                 }
                 className="rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
               >
