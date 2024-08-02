@@ -2,11 +2,11 @@ import sodium from 'libsodium-wrappers';
 
 
 import { 
-    ContractName, CredentialInputNoSeed, ContractAddress, 
+    ContractAddress,
     ConcordiumGRPCWebClient, Timestamp, AccountAddress,
     CcdAmount, Energy, AccountSigner,
     buildBasicAccountSigner,ContractInvokeMetadata,
-    ModuleReference, ContractTransactionMetadata
+    ModuleReference, ContractTransactionMetadata,
     } from "@concordium/web-sdk";
 import * as SmartWallet from "@/constants/module_smart_contract_wallet"
 import { Buffer } from "buffer";
@@ -27,6 +27,8 @@ export type Response = {
     status: boolean;
     message: string
 }
+
+
 
 export class ConcordiumWallet{
     private contractAddress: number;
@@ -129,6 +131,7 @@ export class ConcordiumWallet{
         return res;
     }
 
+
     public async airdrop(kpub:string): Promise<Response>{
         const contract = this.getContract();
         const invokeMetadata:ContractInvokeMetadata = {
@@ -151,6 +154,63 @@ export class ConcordiumWallet{
         return  {status:true, message:"Recevied 10 CCD Successfully"}
     }
 
+    public async withdrawCCD(kpub: string, kpr:string, amount: number, receiver: string) {
+        const contract = this.getContract();
+        const expiry_time = Timestamp.futureMinutes(60)
+        // @ts-ignore
+        const nonce = BigInt(await this.getNonce(kpub));
+        const message = {
+            entry_point: "withdrawCcd",
+            expiry_time,
+            nonce,
+            service_fee_amount: CcdAmount.fromCcd(amount),
+            service_fee_recipient: kpub,
+            simple_withdraws: [
+              {
+                to: {
+                    type: "Account",
+                    content: AccountAddress.fromBase58(receiver)
+                },
+                withdraw_amount: CcdAmount.fromCcd(amount),
+                data: ""
+              },
+            ]
+        }
+        //@ts-ignore
+        const result = await SmartWallet.dryRunGetCcdWithdrawMessageHash(contract, message);
+        console.log(result)
+        const privateKeyBin = this.hexToUint8Array(kpr);
+  
+        // sign the message hash gotten from the contract
+        //@ts-ignore 
+        const signatureUint8 = sodium.crypto_sign_detached(result.returnValue?.buffer, privateKeyBin);
+        const signature = sodium.to_hex(signatureUint8);
+        const parameter = [
+            {
+              message,
+              signature,
+              signer: kpub
+            }
+          ]
+        //@ts-ignore 
+        const dryRun =  await SmartWallet.dryRunWithdrawCcd(contract, parameter);
+        if (!dryRun || dryRun.tag === 'failure' || !dryRun.returnValue) {
+            const parsedErrorCode = SmartWallet.parseErrorMessageWithdrawCcd(dryRun)?.type;
+            return {status:false, message: JSON.stringify(parsedErrorCode)}
+        }
+        const maxContractExecutionEnergy = Energy.create(dryRun.usedEnergy.value + BigInt(200));
+        const metadata:ContractTransactionMetadata = {
+            amount: CcdAmount.fromCcd(0),
+            senderAddress: this.getSender(),
+            energy: maxContractExecutionEnergy
+        } 
+        //@ts-ignore
+        await SmartWallet.sendWithdrawCcd(contract,metadata,parameter,this.signer)
+        
+        return { status:true, message: "Your withdrawal was sent successfully" }
+
+    }
+
     public async getNonce(kpub: string){
         const contract = this.getContract();
         const result = await SmartWallet.dryRunNonceOf(contract, [kpub]);
@@ -160,7 +220,6 @@ export class ConcordiumWallet{
     }
 
 
-   
     public async getExpiryTime() {
         const currentTime = new Date();
         const expiryTime = new Date(currentTime.getTime() + 24 * 60 * 60 * 1000); // Add 24 hours
