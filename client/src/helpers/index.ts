@@ -4,9 +4,9 @@ import sodium from 'libsodium-wrappers';
 import { 
     ContractName, CredentialInputNoSeed, ContractAddress, 
     ConcordiumGRPCWebClient, Timestamp, AccountAddress,
-    CcdAmount, Energy, AccountSigner, AccountTransactionHeader,
-    buildBasicAccountSigner,serializeUpdateContractParameters,
-    ModuleReference, TransactionExpiry, EntrypointName, ContractTransactionMetadata
+    CcdAmount, Energy, AccountSigner,
+    buildBasicAccountSigner,ContractInvokeMetadata,
+    ModuleReference, ContractTransactionMetadata
     } from "@concordium/web-sdk";
 import * as SmartWallet from "@/constants/module_smart_contract_wallet"
 import { Buffer } from "buffer";
@@ -24,7 +24,7 @@ async function generateKeyPair() {
 }
 
 export type Response = {
-    success: boolean;
+    status: boolean;
     message: string
 }
 
@@ -88,7 +88,7 @@ export class ConcordiumWallet{
             simple_transfers: [
               {
                 to: receiver,
-                transfer_amount: CcdAmount.fromCcd(amount * (10 ** 6))
+                transfer_amount: CcdAmount.fromCcd(amount)
               }
             ]
         }
@@ -109,6 +109,11 @@ export class ConcordiumWallet{
             }
           ]
         const response =  await SmartWallet.dryRunTransferCcd(contract, parameter);
+        
+        if (!response || response.tag === 'failure' || !response.returnValue) {
+            const parsedErrorCode = SmartWallet.parseErrorMessageTransferCcd(response)?.type;
+            return {status:false, message: JSON.stringify(parsedErrorCode)}
+        }
                
         const maxContractExecutionEnergy = Energy.create(response.usedEnergy.value + BigInt(200));
         const metadata:ContractTransactionMetadata = {
@@ -120,8 +125,30 @@ export class ConcordiumWallet{
         
         console.log(send)
 
-        const res = {success: true, message:"Transaction was successful"}
+        const res = {status: true, message:"Transaction was successful"}
         return res;
+    }
+
+    public async airdrop(kpub:string): Promise<Response>{
+        const contract = this.getContract();
+        const invokeMetadata:ContractInvokeMetadata = {
+            amount: CcdAmount.fromCcd(10),
+            invoker: this.getSender(),
+        }
+        const dryRun = await SmartWallet.dryRunDepositCcd(contract,kpub,invokeMetadata);
+        if (!dryRun || dryRun.tag === 'failure' || !dryRun.returnValue) {
+            const parsedErrorCode = SmartWallet.parseErrorMessageDepositCcd(dryRun)?.type;
+            return {status:false, message: JSON.stringify(parsedErrorCode)}
+        }
+        const maxContractExecutionEnergy = Energy.create(dryRun.usedEnergy.value + BigInt(200));
+        const metadata:ContractTransactionMetadata = {
+            amount: CcdAmount.fromCcd(10),
+            senderAddress: this.getSender(),
+            energy: maxContractExecutionEnergy
+        } 
+        const hash = await SmartWallet.sendDepositCcd(contract,metadata,kpub,this.signer);
+        console.log(hash)
+        return  {status:true, message:"Recevied 10 CCD Successfully"}
     }
 
     public async getNonce(kpub: string){
@@ -132,7 +159,7 @@ export class ConcordiumWallet{
 
     }
 
-    
+
    
     public async getExpiryTime() {
         const currentTime = new Date();

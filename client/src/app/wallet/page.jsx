@@ -57,8 +57,8 @@ export default function Wallet(){
             < div >
             <Tabs variant='enclosed' className=" place-items-center px-6 py-12 sm:py-16 lg:px-8">
             <TabList className="bg-blue-100 text-center ">
-                <Tab>Send CCD to Smart Account</Tab>
-                <Tab>Send CCD to Wallet Account</Tab>
+                <Tab>Transfer CCD</Tab>
+                <Tab>Withdraw CCD </Tab>
                 <Tab>Get Airdrop</Tab>
 
             </TabList>
@@ -87,7 +87,7 @@ export default function Wallet(){
                             parseFloat(document.getElementById("amount").value), 
                             document.getElementById("dest").value
                         )
-                        res.success? toast.success(res.message)
+                        res.status? toast.success(res.message)
                         : toast.error(`Error: ${res.message}`) 
                         }catch(e){
                             console.log(e)
@@ -125,13 +125,27 @@ export default function Wallet(){
 
 
                 <TabPanel>
+                    <label for="website-admin" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">By clicking, you will receive 10 CCD to your smart account</label>
+
                 <Button className="mt-3 max-w-sm mx-auto" onClick={
-                    async ()=>{
-                        await getResult() ?
-                            toast.success("Results Calculated Successfully")
-                            : toast.error("Something Went Wrong")                    
+                    async () =>{   
+                        try{
+                            if (localStorage.getItem("airdrop") !== null) {
+                                alert("You have recieved the airdrop")
+                                return;
+                            }
+                            const key = JSON.parse(window.localStorage.getItem("cis5-keypair"))
+                            const response = await wallet.airdrop(key.publicKey)
+                            response.status ?
+                                toast.success(response.message)
+                                : toast.error(response.message) 
+                            localStorage.setItem("airdrop", "true")
+                        }catch(err){
+                            console.log(err)
+                        }
+                                           
                     }
-                }>Calculate Results</Button>
+                }>airdrop</Button>
                 </TabPanel>
             </TabPanels>
             </Tabs>
