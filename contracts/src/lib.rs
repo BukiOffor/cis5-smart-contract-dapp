@@ -1315,6 +1315,15 @@ pub struct CcdBalanceOfParameter {
     pub queries: Vec<PublicKeyEd25519>,
 }
 
+/// The parameter type for the contract function `ccdBalanceOf`.
+#[derive(Serialize, SchemaType)]
+#[concordium(transparent)]
+#[repr(transparent)]
+pub struct CcdBalanceOfAccount {
+    /// List of balance queries.
+    pub queries: PublicKeyEd25519,
+}
+
 /// The response which is sent back when calling the contract function
 /// `ccdBalanceOf`.
 /// It consists of the list of results corresponding to the list of queries.
@@ -1377,6 +1386,16 @@ pub struct Cis2BalanceOfParameter {
     pub queries: Vec<Cis2BalanceOfQuery>,
 }
 
+/// The parameter type for the contract function `cis2BalanceOf`.
+#[derive(Serialize, SchemaType)]
+#[concordium(transparent)]
+#[repr(transparent)]
+pub struct Cis2BalanceOfAccount {
+    /// List of balance queries.
+    pub queries: Cis2BalanceOfQuery,
+}
+
+
 /// The response which is sent back when calling the contract function
 /// `cis2BalanceOf`.
 /// It consists of the list of results corresponding to the list of queries.
@@ -1421,6 +1440,60 @@ fn contract_cis2_balance_of(
     let result = Cis2BalanceOfResponse::from(response);
     Ok(result)
 }
+
+
+/// The function queries the CCD balances of a public keys.
+///
+/// It rejects if:
+/// - It fails to parse the parameter.
+#[receive(
+    contract = "smart_contract_wallet",
+    name = "ccdBalanceOfAccount",
+    parameter = "CcdBalanceOfAccount",
+    return_value = "Amount",
+    error = "CustomContractError"
+)]
+fn contract_ccd_balance_of_account(
+    ctx: &ReceiveContext,
+    host: &Host<State>,
+) -> ContractResult<Amount> {
+    // Parse the parameter.
+    let params: CcdBalanceOfAccount = ctx.parameter_cursor().get()?;
+    // Build the response.
+    let public_key = params.queries;
+    // Query the state for the balance.
+    let amount = host.state().balance_ccd(&public_key);
+    Ok(amount)
+}
+
+/// The function queries the token balances of a public keys.
+///
+/// It rejects if:
+/// - It fails to parse the parameter.
+#[receive(
+    contract = "smart_contract_wallet",
+    name = "cis2BalanceOfAccount",
+    parameter = "Cis2BalanceOfAccount",
+    return_value = "TokenAmountU256",
+    error = "CustomContractError"
+)]
+fn contract_cis2_balance_of_account(
+    ctx: &ReceiveContext,
+    host: &Host<State>,
+) -> ContractResult<TokenAmountU256> {
+    // Parse the parameter.
+    let params: Cis2BalanceOfAccount = ctx.parameter_cursor().get()?;
+    // Build the response.
+    let query =  params.queries;
+        // Query the state for balance.
+    let amount = host.state().balance_tokens(
+        query.token_id,
+        query.cis2_token_contract_address,
+        query.public_key,
+    );
+    Ok(amount)
+}
+
 
 /// The parameter type for the contracts `nonceOf` entrypoint which results in a
 /// corresponding list of nonces being returned.

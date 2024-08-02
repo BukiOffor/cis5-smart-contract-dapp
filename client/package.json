@@ -11,6 +11,10 @@
   "dependencies": {
     "@chakra-ui/next-js": "^2.1.5",
     "@chakra-ui/react": "^2.8.0",
+    "@concordium/ccd-js-gen": "^1.2.0",
+    "@concordium/node-sdk": "9.4.0",
+    "@concordium/rust-bindings": "^3.0.0",
+    "@concordium/web-sdk": "^7.3.2",
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
     "@headlessui/react": "^1.7.17",
@@ -37,10 +41,9 @@
     "react-icons": "^4.10.1",
     "react-toastify": "^10.0.5",
     "tailwindcss": "3.3.3",
-    "typescript": "5.1.6",
-    "@concordium/ccd-js-gen": "^1.2.0",
-    "@concordium/node-sdk": "9.4.0",
-    "@concordium/rust-bindings": "^3.0.0",
-    "@concordium/web-sdk": "^7.3.2"
+    "typescript": "5.1.6"
+  },
+  "devDependencies": {
+    "@types/libsodium-wrappers": "^0.7.14"
   }
 }

@@ -1,10 +1,14 @@
 "use client";
-import {generateKeyPair} from "@/helpers/index"
+import { ConcordiumWallet } from "@/helpers/index"
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from "react";
 
 
 export default function Base(){
+  
   const router = useRouter();
+  const wallet = new ConcordiumWallet(9736);
+ 
 
     return (
         <>
@@ -18,10 +22,16 @@ export default function Base(){
             <div className="mt-10 flex items-center justify-center gap-x-6">
               <button
                 onClick={async ()=>{
-                  let keypair = await generateKeyPair();
-                  localStorage.setItem("cis5-keypair", JSON.stringify(keypair));
-                  alert(`Account Created: ${keypair.publicKey}`)
-                  router.push('/wallet')
+                  let keypair = await wallet.generateKeyPair();
+                  try{
+                     localStorage.setItem("cis5-keypair", JSON.stringify(keypair));
+                    alert(`Account Created: ${keypair.publicKey}`)
+                    router.push('/wallet')
+                  }catch(error){
+                    console.log(error)
+                    alert("Something went wrong")
+                  }
+                 
                   }
                 }
                 className="rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
