@@ -11,7 +11,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { Tabs, TabList, TabPanels, Tab, TabPanel } from '@chakra-ui/react';
 import { ConcordiumWallet } from "@/helpers" ;
 import { useRouter } from "next/navigation";
-import * as SmartWallet from "@/constants/module_smart_contract_wallet"
+
 
 
 

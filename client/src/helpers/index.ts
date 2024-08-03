@@ -10,6 +10,7 @@ import {
     } from "@concordium/web-sdk";
 import * as SmartWallet from "@/constants/module_smart_contract_wallet"
 import { Buffer } from "buffer";
+import { Cis2BalanceOfAccountParameter, TransferCis2TokensParameter } from '@/constants/module_smart_contract_wallet';
 
 async function generateKeyPair() {
     await sodium.ready;
@@ -28,6 +29,12 @@ export type Response = {
     message: string
 }
 
+export type TransactionPayload = {
+    publicKey: string;
+    privateKey: string;
+    amount: number;
+    receiver: string;
+}
 
 
 export class ConcordiumWallet{
@@ -35,12 +42,15 @@ export class ConcordiumWallet{
     private grpc: ConcordiumGRPCWebClient;
     private signer: AccountSigner;
     private name: string
+    private tokenAddress:number;
 
     constructor(contractAddress: number) {
         this.contractAddress = contractAddress;
         this.grpc = new ConcordiumGRPCWebClient("http://node.testnet.concordium.com", 20000)
         this.signer = buildBasicAccountSigner("bccce67043b1776484453eb2ba754ee6f7a2e982c10590cc1ef1be47d1001a57");
-        this.name = "smart_contract_wallet";    
+        this.name = "smart_contract_wallet"; 
+        this.tokenAddress = 9173;
+  
     }
 
     private async getSchema(){
@@ -209,6 +219,70 @@ export class ConcordiumWallet{
         
         return { status:true, message: "Your withdrawal was sent successfully" }
 
+    }
+
+    public async balanceOfCis2Tokens(kpub: string): Promise<any> {
+        const contract = this.getContract();
+        const tokenAddress = ContractAddress.create(this.tokenAddress);
+        const message:Cis2BalanceOfAccountParameter = {
+            token_id: "",
+            cis2_token_contract_address: tokenAddress,
+            public_key: kpub
+        }
+        const dryRun = await SmartWallet.dryRunCis2BalanceOfAccount(contract,message);
+        console.log(dryRun)
+        const balance = SmartWallet.parseReturnValueCis2BalanceOfAccount(dryRun);
+        return balance?.toString();
+    }
+
+    public async transferCis2Tokens(payload: TransactionPayload): Promise<Response> {
+        const contract = this.getContract();
+        const tokenAddress = ContractAddress.create(this.tokenAddress);
+        // @ts-ignore
+        const nonce = BigInt(await this.getNonce(payload.publicKey));
+        const message = {
+            entry_point: "transferCis2Tokens",
+            expiry_time: Timestamp.futureMinutes(60),
+            nonce,
+            service_fee_recipient: payload.publicKey,
+            service_fee_amount: {
+                token_amount: 0,
+                token_id: "",
+                cis2_token_contract_address: tokenAddress,
+            },
+            simple_transfers: [{
+                to: payload.receiver,
+                transfer_amount: {
+                    token_amount: payload.amount,
+                    token_id: "",
+                    cis2_token_contract_address: tokenAddress,
+                }
+            }]
+        };
+         const result = await SmartWallet.dryRunGetCis2TransferMessageHash(contract, message);
+         const privateKeyBin = this.hexToUint8Array(payload.privateKey);
+        //@ts-ignore 
+        const signatureUint8 = sodium.crypto_sign_detached(result.returnValue?.buffer, privateKeyBin);
+        const signature = sodium.to_hex(signatureUint8);
+        const param: TransferCis2TokensParameter =[{
+            signer: payload.publicKey,
+            signature,
+            message,
+            
+        }]
+        const dryRun = await SmartWallet.dryRunTransferCis2Tokens(contract,param);
+        if (!dryRun || dryRun.tag === 'failure' || !dryRun.returnValue) {
+            const parsedErrorCode = SmartWallet.parseErrorMessageWithdrawCcd(dryRun)?.type;
+            return {status:false, message: JSON.stringify(parsedErrorCode)}
+        }
+        const energy = Energy.create(dryRun.usedEnergy.value + BigInt(200));
+        const metadata:ContractTransactionMetadata = {
+            amount: CcdAmount.fromCcd(0),
+            senderAddress: this.getSender(),
+            energy
+        } 
+        await SmartWallet.sendTransferCis2Tokens(contract,metadata,param,this.signer)
+        return {status:true, message: "Transfer was Succesful"}
     }
 
     public async getNonce(kpub: string){
