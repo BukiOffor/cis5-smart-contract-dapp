@@ -7,10 +7,20 @@ import {
     CcdAmount, Energy, AccountSigner,
     buildBasicAccountSigner,ContractInvokeMetadata,
     ModuleReference, ContractTransactionMetadata,
+    AccountTransactionHeader,
+    serializeUpdateContractParameters,
+    ContractName,
+    EntrypointName,
+    UpdateContractPayload,
+    ReceiveName,
+    AccountTransaction,
+    AccountTransactionType,
+    signTransaction,
+    TransactionExpiry,
     } from "@concordium/web-sdk";
 import * as SmartWallet from "@/constants/module_smart_contract_wallet"
 import { Buffer } from "buffer";
-import { Cis2BalanceOfAccountParameter, TransferCis2TokensParameter } from '@/constants/module_smart_contract_wallet';
+import { Cis2BalanceOfAccountParameter, GetCcdWithdrawMessageHashParameter, GetCis2WithdrawMessageHashParameter, TransferCis2TokensParameter, WithdrawCis2TokensParameter } from '@/constants/module_smart_contract_wallet';
 
 async function generateKeyPair() {
     await sodium.ready;
@@ -135,7 +145,7 @@ export class ConcordiumWallet{
         }
         const send = await SmartWallet.sendTransferCcd(contract,metadata,parameter,this.signer);
         
-        console.log(send)
+        //console.log(send)
 
         const res = {status: true, message:"Transaction was successful"}
         return res;
@@ -160,7 +170,7 @@ export class ConcordiumWallet{
             energy: maxContractExecutionEnergy
         } 
         const hash = await SmartWallet.sendDepositCcd(contract,metadata,kpub,this.signer);
-        console.log(hash)
+        //console.log(hash)
         return  {status:true, message:"Recevied 10 CCD Successfully"}
     }
 
@@ -188,7 +198,7 @@ export class ConcordiumWallet{
         }
         //@ts-ignore
         const result = await SmartWallet.dryRunGetCcdWithdrawMessageHash(contract, message);
-        console.log(result)
+        //console.log(result)
         const privateKeyBin = this.hexToUint8Array(kpr);
   
         // sign the message hash gotten from the contract
@@ -230,7 +240,7 @@ export class ConcordiumWallet{
             public_key: kpub
         }
         const dryRun = await SmartWallet.dryRunCis2BalanceOfAccount(contract,message);
-        console.log(dryRun)
+        //console.log(dryRun)
         const balance = SmartWallet.parseReturnValueCis2BalanceOfAccount(dryRun);
         return balance?.toString();
     }
@@ -284,6 +294,128 @@ export class ConcordiumWallet{
         await SmartWallet.sendTransferCis2Tokens(contract,metadata,param,this.signer)
         return {status:true, message: "Transfer was Succesful"}
     }
+    public async withdrawCis2Tokens(payload: TransactionPayload): Promise<Response> {
+        const contract = this.getContract();
+        const tokenAddress = ContractAddress.create(this.tokenAddress);
+        // @ts-ignore
+        const nonce = BigInt(await this.getNonce(payload.publicKey));
+        const message:GetCis2WithdrawMessageHashParameter = {
+            entry_point: "withdrawCis2Tokens",
+            expiry_time: Timestamp.futureMinutes(60),
+            nonce,
+            service_fee_recipient: payload.publicKey,
+            service_fee_amount: {
+                token_amount: 0,
+                token_id: "",
+                cis2_token_contract_address: tokenAddress,
+            },
+            simple_withdraws: [{
+                to: {
+                    type: "Account",
+                    content: AccountAddress.fromBase58(payload.receiver)
+                },
+                withdraw_amount: {
+                    token_amount: BigInt(payload.amount),
+                    token_id: "",
+                    cis2_token_contract_address: tokenAddress,
+                },
+                data: ""
+            }]
+        };
+        const result = await SmartWallet.dryRunGetCis2WithdrawMessageHash(contract, message);
+        const privateKeyBin = this.hexToUint8Array(payload.privateKey);
+        //@ts-ignore 
+        const signatureUint8 = sodium.crypto_sign_detached(result.returnValue?.buffer, privateKeyBin);
+        const signature = sodium.to_hex(signatureUint8);
+        const param: WithdrawCis2TokensParameter =[{
+            signer: payload.publicKey,
+            signature,
+            message,
+            
+        }]
+        const dryRun = await SmartWallet.dryRunWithdrawCis2Tokens(contract,param);
+        if (!dryRun || dryRun.tag === 'failure' || !dryRun.returnValue) {
+            const parsedErrorCode = SmartWallet.parseErrorMessageWithdrawCcd(dryRun)?.type;
+            return {status:false, message: JSON.stringify(parsedErrorCode)}
+        }
+        const energy = Energy.create(dryRun.usedEnergy.value + BigInt(200));
+        const metadata:ContractTransactionMetadata = {
+            amount: CcdAmount.fromCcd(0),
+            senderAddress: this.getSender(),
+            energy
+        } 
+        await SmartWallet.sendWithdrawCis2Tokens(contract,metadata,param,this.signer)
+        return {status:true, message: "Transfer was Succesful"}
+    }
+
+
+
+    async airdropCis2Token(publicKey:string, _amount:number): Promise<Response> {   
+       try{
+            const sender = this.getSender();
+            const signer = this.signer;
+            const mod_ref = ModuleReference.fromHexString("17dc53460985e3259d1ea88de9c9b6360ce4f43d3ccca66907cb7a559cc44cb6");
+            const schema = await this.grpc.getEmbeddedSchema(mod_ref);
+            const amount = _amount * (10 ** 6)
+            const param = {
+                amount: amount.toString(),
+                data: publicKey,
+                from: {
+                    Account: [sender]
+                },
+                to: {
+                    Contract: [{
+                        index: Number(this.contractAddress),
+                        subindex: 0
+                    }, 
+                    'depositCis2Tokens'
+                ]
+                },
+                token_id: ''
+            };
+            const updateHeader: AccountTransactionHeader = {
+                expiry: TransactionExpiry.futureMinutes(10),
+                nonce: (await this.grpc.getNextAccountNonce(sender)).nonce,
+                sender,
+            };
+
+            const updateParams = serializeUpdateContractParameters(
+                ContractName.fromString("token"),
+                EntrypointName.fromString("transfer"),
+                [param],
+                schema,
+            );
+            //console.log({updateHeader, updateParams})
+            const updatePayload: UpdateContractPayload = {
+                amount: CcdAmount.fromCcd(0),
+                address: ContractAddress.create(9173),
+                receiveName: ReceiveName.fromString("token.transfer"),
+                message: updateParams,
+                maxContractExecutionEnergy:  Energy.create(30000),
+            };
+            //console.log({updatePayload})
+            const updateTransaction: AccountTransaction = {
+                header: updateHeader,
+                payload: updatePayload,
+                type: AccountTransactionType.Update,
+            };
+            const updateSignature = await signTransaction(updateTransaction, signer);
+            const hash = await this.grpc.sendAccountTransaction(
+                updateTransaction,
+                updateSignature
+            );
+            console.log('Transaction submitted, waiting for finalization...');
+            const updateStatus = await this.grpc.waitForTransactionFinalization(hash);
+            
+            return {status:true, message: "Airdrop was sent succesfully"}
+
+       }catch (err) {
+            //console.log(err)
+            return {status:false, message: "Airdrop was not succesful, Please try again"}
+       }
+       
+    }
+
 
     public async getNonce(kpub: string){
         const contract = this.getContract();
@@ -292,7 +424,6 @@ export class ConcordiumWallet{
         return nonce?.toString();
 
     }
-
 
     public async getExpiryTime() {
         const currentTime = new Date();
@@ -306,10 +437,9 @@ export class ConcordiumWallet{
         }
         return bytes;
       }
-
-
-
 }
+
+
 
 module.exports = {
     generateKeyPair,

@@ -27,8 +27,8 @@ export default function Token(){
   useEffect(() => {  
     async function updateUI() {
         const key = JSON.parse(window.localStorage.getItem("cis5-keypair"))
-        const balance = await wallet.balanceOfCis2Tokens(key.publicKey)
-        setBalance(balance);
+        const balance = parseInt(await wallet.balanceOfCis2Tokens(key.publicKey)) / 1e6 ;
+        setBalance(balance.toString());
     }
     updateUI();
   }, []);
@@ -119,11 +119,16 @@ export default function Token(){
                 <TabPanel>
                 <Button className="mt-3 max-w-sm mx-auto" onClick={
                     async ()=>{
-                        await getResult() ?
-                            toast.success("Results Calculated Successfully")
-                            : toast.error("Something Went Wrong")                    
+                        try{
+                            const key = JSON.parse(window.localStorage.getItem("cis5-keypair"))
+                            const res = await wallet.airdropCis2Token(key.publicKey, 20)
+                                res.status? toast.success(res.message)
+                                : toast.error(`Error: ${res.message}`) 
+                            } catch(e) {
+                                console.log(e)
+                            }                 
                     }
-                }>Calculate Results</Button>
+                }>Airdrop Token</Button>
                 </TabPanel>
             </TabPanels>
             </Tabs>
