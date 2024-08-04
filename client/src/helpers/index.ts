@@ -1,6 +1,4 @@
 import sodium from 'libsodium-wrappers';
-
-
 import { 
     ContractAddress,
     ConcordiumGRPCWebClient, Timestamp, AccountAddress,
@@ -20,7 +18,12 @@ import {
     } from "@concordium/web-sdk";
 import * as SmartWallet from "@/constants/module_smart_contract_wallet"
 import { Buffer } from "buffer";
-import { Cis2BalanceOfAccountParameter, GetCcdWithdrawMessageHashParameter, GetCis2WithdrawMessageHashParameter, TransferCis2TokensParameter, WithdrawCis2TokensParameter } from '@/constants/module_smart_contract_wallet';
+import { 
+    Cis2BalanceOfAccountParameter, 
+    GetCis2WithdrawMessageHashParameter, 
+    TransferCis2TokensParameter, 
+    WithdrawCis2TokensParameter 
+} from '@/constants/module_smart_contract_wallet';
 
 async function generateKeyPair() {
     await sodium.ready;
@@ -263,7 +266,7 @@ export class ConcordiumWallet{
             simple_transfers: [{
                 to: payload.receiver,
                 transfer_amount: {
-                    token_amount: payload.amount,
+                    token_amount: payload.amount * (10 ** 6),
                     token_id: "",
                     cis2_token_contract_address: tokenAddress,
                 }
@@ -299,6 +302,7 @@ export class ConcordiumWallet{
         const tokenAddress = ContractAddress.create(this.tokenAddress);
         // @ts-ignore
         const nonce = BigInt(await this.getNonce(payload.publicKey));
+        const amount = payload.amount * (10 ** 6)
         const message:GetCis2WithdrawMessageHashParameter = {
             entry_point: "withdrawCis2Tokens",
             expiry_time: Timestamp.futureMinutes(60),
@@ -315,7 +319,7 @@ export class ConcordiumWallet{
                     content: AccountAddress.fromBase58(payload.receiver)
                 },
                 withdraw_amount: {
-                    token_amount: BigInt(payload.amount),
+                    token_amount: BigInt(amount),
                     token_id: "",
                     cis2_token_contract_address: tokenAddress,
                 },
