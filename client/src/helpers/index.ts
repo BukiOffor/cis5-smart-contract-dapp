@@ -16,14 +16,14 @@ import {
     signTransaction,
     TransactionExpiry,
     } from "@concordium/web-sdk";
-import * as SmartWallet from "@/constants/module_smart_contract_wallet"
+import * as SmartWallet from "@/constants/smart_contract_smart_contract_wallet"
 import { Buffer } from "buffer";
 import { 
     Cis2BalanceOfAccountParameter, 
     GetCis2WithdrawMessageHashParameter, 
     TransferCis2TokensParameter, 
     WithdrawCis2TokensParameter 
-} from '@/constants/module_smart_contract_wallet';
+} from '@/constants/smart_contract_smart_contract_wallet';
 
 async function generateKeyPair() {
     await sodium.ready;

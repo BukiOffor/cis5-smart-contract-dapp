@@ -15,7 +15,7 @@ async function buildFromModule(){
 
 async function buildFromChain(){
     const outDirPath = "src/constants"; // The directory to use for the generated files.
-    const outputModuleName = "smart_contract_wallet_generated"; // The name to give the output smart contract module.
+    const outputModuleName = "smart_contract"; // The name to give the output smart contract module.
 
     const grpcClient = new SDK.ConcordiumGRPCWebClient("http://node.testnet.concordium.com", 20000)
 
@@ -33,7 +33,7 @@ async function buildFromChain(){
 
 
 async function main(){
-   //await buildFromModule();
+  // await buildFromModule();
    await buildFromChain()
 }
 
