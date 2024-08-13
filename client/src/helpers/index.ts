@@ -59,7 +59,7 @@ export class ConcordiumWallet{
 
     constructor(contractAddress: number) {
         this.contractAddress = contractAddress;
-        this.grpc = new ConcordiumGRPCWebClient("http://node.testnet.concordium.com", 20000)
+        this.grpc = new ConcordiumGRPCWebClient("https://grpc.testnet.concordium.com", 20000)
         this.signer = buildBasicAccountSigner("bccce67043b1776484453eb2ba754ee6f7a2e982c10590cc1ef1be47d1001a57");
         this.name = "smart_contract_wallet"; 
         this.tokenAddress = 9173;
