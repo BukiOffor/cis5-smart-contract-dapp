@@ -72,16 +72,23 @@ export class ConcordiumWallet{
         return schema
     }
 
+   /**
+   *Returns the account address of the admin
+   */ 
     private getSender(){
         return AccountAddress.fromBase58("38TN6fTCjgHYp7vXDagLJsb6s3UHzDANaGS2wXwgQLBUJrEian");
     }
 
+    // returns of contract instance
     private getContract(){
         const contractAddr = ContractAddress.create(this.contractAddress);
         const contract = SmartWallet.createUnchecked(this.grpc, contractAddr) 
         return contract;
     }
-
+   /**
+   *Generates ed25519 keypair for a user
+   * @returns { publicKey: string, privateKey: string }
+   */ 
     async generateKeyPair() {
         await sodium.ready;
         const keyPair = sodium.crypto_sign_keypair();
@@ -92,12 +99,25 @@ export class ConcordiumWallet{
             privateKey: Buffer.from(privateKey). toString ('hex'),
             }
     }
+   /**
+   *Checks and returns the ccd balance of a public key on the smart wallet
+   * @param kpub ed25519 public key of the owner
+   */ 
     public async getCCDBalanceOfAccount(kpub: string) {
        const contract = this.getContract();
        const result = await SmartWallet.dryRunCcdBalanceOfAccount(contract, kpub);
        const balance = SmartWallet.parseReturnValueCcdBalanceOfAccount(result);
        return balance?.toString();       
     }
+
+   /**
+   *This method makes a transfer from a user to another publickey.
+   The user first signs a transaction and the admin key sends the signed transaction to the chain.
+   * @param kpub public key of the sender
+   * @param kpr private key of the sender
+   * @param amount amount to be transferred in CCDs
+   * @param receiver public key of the receiver
+   */
 
     public async makeCCDTransfer(kpub: string, kpr:string, amount: number, receiver: string): Promise<Response> {
         const contract = this.getContract();
@@ -154,6 +174,10 @@ export class ConcordiumWallet{
         return res;
     }
 
+    /**
+   *deposits 10 ccd to a publickey from the admin wallet
+   * @param kpub
+   */
 
     public async airdrop(kpub:string): Promise<Response>{
         const contract = this.getContract();
@@ -161,6 +185,7 @@ export class ConcordiumWallet{
             amount: CcdAmount.fromCcd(10),
             invoker: this.getSender(),
         }
+        //simulate transaction
         const dryRun = await SmartWallet.dryRunDepositCcd(contract,kpub,invokeMetadata);
         if (!dryRun || dryRun.tag === 'failure' || !dryRun.returnValue) {
             const parsedErrorCode = SmartWallet.parseErrorMessageDepositCcd(dryRun)?.type;
@@ -177,6 +202,15 @@ export class ConcordiumWallet{
         return  {status:true, message:"Recevied 10 CCD Successfully"}
     }
 
+
+   /**
+   *Withdraws CCD out of the smart wallet to an account on the blockchain
+   * @param kpub ed25519 public key of the sender
+   * @param kpr ed25519 private key of the sender
+   * @param amount amount to be withdrawn in ccds
+   * @param receiver account address of the receiver
+   * @returns { status: boolean, message: string }
+   */
     public async withdrawCCD(kpub: string, kpr:string, amount: number, receiver: string) {
         const contract = this.getContract();
         const expiry_time = Timestamp.futureMinutes(60)
@@ -215,6 +249,7 @@ export class ConcordiumWallet{
               signer: kpub
             }
           ]
+        // simulate transaction
         //@ts-ignore 
         const dryRun =  await SmartWallet.dryRunWithdrawCcd(contract, parameter);
         if (!dryRun || dryRun.tag === 'failure' || !dryRun.returnValue) {
@@ -234,6 +269,10 @@ export class ConcordiumWallet{
 
     }
 
+    /**
+   *Checks and returns the cis2 token balance of a public key on the smart wallet
+   * @param kpub ed25519 public key of the owner
+   */ 
     public async balanceOfCis2Tokens(kpub: string): Promise<any> {
         const contract = this.getContract();
         const tokenAddress = ContractAddress.create(this.tokenAddress);
@@ -248,6 +287,14 @@ export class ConcordiumWallet{
         return balance?.toString();
     }
 
+   /**
+   *Transfers CIS2 token from an owner to another publickey on the smart contract
+   * @param payload Transaction payload to perform a transfer on the contract.
+   * @param payload.publicKey ed25519 public key of the sender
+   * @param payload.privatKey ed25519 private key of the sender 
+   * @param payload.amount amount to be transferred
+   * @param payload.receiver ed25519 public key of the receiver   
+   */
     public async transferCis2Tokens(payload: TransactionPayload): Promise<Response> {
         const contract = this.getContract();
         const tokenAddress = ContractAddress.create(this.tokenAddress);
@@ -353,6 +400,11 @@ export class ConcordiumWallet{
     }
 
 
+    /**
+   *deposits 10 ccd to a publickey from the admin wallet
+   * @param publicKey ed25519 public key of the receiptient
+   * @param _amount amount of token to be deposited
+   */
 
     async airdropCis2Token(publicKey:string, _amount:number): Promise<Response> {   
        try{
