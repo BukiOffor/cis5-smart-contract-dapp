@@ -10,13 +10,18 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Tabs, TabList, TabPanels, Tab, TabPanel } from '@chakra-ui/react';
 import { ConcordiumWallet } from "@/helpers" ;
+import { useRouter } from "next/navigation";
 
 
 export default function Token(){
  
     const wallet = new ConcordiumWallet(9736);
+    const router = useRouter();
     const [balance, setBalance] = useState("")
     const[key, setKey] = useState({})
+    const [spinner, setSpinner] = useState(false)
+
+
 
     useEffect(() => {
         setKey(JSON.parse(window.localStorage.getItem("cis5-keypair")));
@@ -27,8 +32,8 @@ export default function Token(){
   useEffect(() => {  
     async function updateUI() {
         const key = JSON.parse(window.localStorage.getItem("cis5-keypair"))
-        const balance = parseInt(await wallet.balanceOfCis2Tokens(key.publicKey)) / 1e6 ;
-        setBalance(balance.toString());
+        const balance = parseFloat((await wallet.balanceOfCis2Tokens(key.publicKey)) / 1e9);
+        setBalance(balance.toFixed(9));
     }
     updateUI();
   }, []);
@@ -42,8 +47,12 @@ export default function Token(){
                 </h1>
                 <div>
                     <p>TOKEN ADDRESS: 9173</p>
+                    <p>TOKEN ID: null</p>
                     <p>SMART ACCOUNT KEY: {key.publicKey}</p>
                     <p>BALANCE: {balance} GATE</p> <br/>
+                    <button onClick = {()=>{router.push("/wallet")}} className=" rounded-md bg-cyan-700 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-cyan-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+                        CCD
+                    </button>
                     
                 </div>            
               </div>
@@ -64,14 +73,20 @@ export default function Token(){
                         <input type="text" id="t_recipient" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="32949765cb2c733c1cb90816e7" required />
                     </div>
                     <div class="mb-5">
-                        <label for="password" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Amount</label>
-                        <input type="number" id="t_amount" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" required placeholder="10" />
+                        <label for="text" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Amount</label>
+                        <input type="text" id="t_amount" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" required placeholder="10" />
                     </div>
                     <div class="flex items-start mb-1">                        
                     </div>
                     <Button onClick={ async () => {
-
-                      //console.log("t_recipient: ",document.getElementById("t_recipient").value)
+                        if (!(document.getElementById("t_recipient").value)) {
+                            toast.error('Please fill in the receiver public key')
+                            return
+                        }
+                        if (!(document.getElementById("t_amount").value)) {
+                            toast.error('Error: Please fill in the amount')
+                            return
+                        }
                         try{
                             const key = JSON.parse(window.localStorage.getItem("cis5-keypair"))
                             const payload = {
@@ -81,8 +96,14 @@ export default function Token(){
                                 receiver: document.getElementById("t_recipient").value
                             }
                             const res = await wallet.transferCis2Tokens(payload)
-                            res.status? toast.success(res.message)
-                            : toast.error(`Error: ${res.message}`) 
+                            if (res.status){ 
+                                toast.success(res.message)
+                                setTimeout(() => {
+                                    window.location.reload() 
+                                  }, 3000) 
+                            } else { 
+                                toast.error(`Error: ${res.message}`)
+                             }
                             } catch(e) {
                                 console.log(e)
                             }
@@ -96,15 +117,25 @@ export default function Token(){
                 <TabPanel>                
                     <form class="max-w-sm mx-auto">
                     <div class="mb-5">
-                        <label for="password" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Account Address</label>
-                        <input  id="w_dest" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" required placeholder="38TN6fTCjgHYp7vXDagLJsb6s3UHzDANaGS2wXwgQLBUJrEian" />
+                        <label for="text" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Account Address</label>
+                        <input  type="text" id="w_dest" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" required placeholder="38TN6fTCjgHYp7vXDagLJsb6s3UHzDANaGS2wXwgQLBUJrEian" />
                     </div>
                     <div class="mb-5">
                         <label for="password" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Amount</label>
-                        <input  id="w_amount" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" required placeholder="10" />
+                        <input  type="text" id="w_amount" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" required placeholder="10" />
                     </div>
                     <Button className="mt-3" onClick={ async ()=>{
+                        console.log('pressed')
+                        if (!(document.getElementById("w_dest").value)) {
+                            toast.error('Please fill in the receiver address')
+                            return
+                        }
+                        if (!(document.getElementById("w_amount").value)) {
+                            toast.error('Please fill in the withdrawal amount')
+                            return
+                        }
                         try{
+                           
                             const key = JSON.parse(window.localStorage.getItem("cis5-keypair"))
                             const payload = {
                                 publicKey:key.publicKey, 
@@ -113,8 +144,14 @@ export default function Token(){
                                 receiver: document.getElementById("w_dest").value
                             }
                             const res = await wallet.withdrawCis2Tokens(payload)
-                            res.status? toast.success(res.message)
-                            : toast.error(`Error: ${res.message}`) 
+                            if (res.status){ 
+                                toast.success(res.message)
+                                setTimeout(() => {
+                                    window.location.reload() 
+                                  }, 3000) 
+                            } else { 
+                                toast.error(`Error: ${res.message}`)
+                             }
                             } catch(e) {
                                 console.log(e)
                             }
@@ -127,18 +164,34 @@ export default function Token(){
 
 
                 <TabPanel>
-                <Button className="mt-3 max-w-sm mx-auto" onClick={
+                <Button className="mt-3 max-w-sm mx-auto" id="btn" onClick={
                     async ()=>{
+                        setSpinner(true)
                         try{
                             const key = JSON.parse(window.localStorage.getItem("cis5-keypair"))
-                            const res = await wallet.airdropCis2Token(key.publicKey, 20)
-                                res.status? toast.success(res.message)
-                                : toast.error(`Error: ${res.message}`) 
+                            const res = await wallet.airdropCis2Token(key.publicKey, 10)
+                            if (res.status){ 
+                                setSpinner(false)
+                                toast.success(res.message) 
+                                setTimeout(() => {
+                                    window.location.reload() 
+                                  }, 1500) 
+                          
+                            } else { 
+                                toast.error(`Error: ${res.message}`) 
+                                setSpinner(false)
+                        }
                             } catch(e) {
                                 console.log(e)
+                                setSpinner(false)
+
                             }                 
                     }
-                }>Airdrop Token</Button>
+                }>{spinner ? (
+                    <div className="animate-spin spinner-border h-8 w-8 border-b-2 rounded-full"></div>
+                ) : (
+                    "airdrop token"
+                )}</Button>
                 </TabPanel>
             </TabPanels>
             </Tabs>
