@@ -20,6 +20,8 @@ export default function Wallet(){
     const wallet = new ConcordiumWallet(9736);
     const [balance, setBalance] = useState("")
     const[key, setKey] = useState({})
+    const [spinners, setSpinners] = useState(false)
+
 
     useEffect(() => {
         setKey(JSON.parse(window.localStorage.getItem("cis5-keypair")));
@@ -73,12 +75,20 @@ export default function Wallet(){
                     </div>
                     <div class="mb-5">
                         <label for="password" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Amount</label>
-                        <input type="number" id="amount" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" required placeholder="10" />
+                        <input type="text" id="amount" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" required placeholder="10" />
                     </div>
                     <div class="flex items-start mb-1">                        
                     </div>
                     <Button onClick={ async () => {
                         console.log("id: ",document.getElementById("dest").value)
+                        if (!(document.getElementById("dest").value)) {
+                            toast.error('Please fill in the receiver public key')
+                            return
+                        }
+                        if (!(document.getElementById("amount").value)) {
+                            toast.error('Error: Please fill in the amount')
+                            return
+                        }
                         try{
                             const key = JSON.parse(window.localStorage.getItem("cis5-keypair"))
                             const res = await wallet.makeCCDTransfer( 
@@ -87,8 +97,14 @@ export default function Wallet(){
                             parseFloat(document.getElementById("amount").value), 
                             document.getElementById("dest").value
                         )
-                        res.status? toast.success(res.message)
-                        : toast.error(`Error: ${res.message}`) 
+                        if (res.status){ 
+                            toast.success(res.message)
+                            setTimeout(() => {
+                                window.location.reload() 
+                              }, 3000) 
+                        } else { 
+                            toast.error(`Error: ${res.message}`)
+                         }
                         }catch(e){
                             console.log(e)
                         }
@@ -112,6 +128,14 @@ export default function Wallet(){
                     </div>
                     <Button className="mt-3" onClick={ async ()=>{
                         //console.log("id: ",document.getElementById("withdraw_dest").value)
+                        if (!(document.getElementById("withdraw_dest").value)) {
+                            toast.error('Please fill in the receiver public key')
+                            return
+                        }
+                        if (!(document.getElementById("withdraw_amount").value)) {
+                            toast.error('Error: Please fill in the amount')
+                            return
+                        }
                         try{
                             const key = JSON.parse(window.localStorage.getItem("cis5-keypair"))
                             const res = await wallet.withdrawCCD( 
@@ -120,8 +144,14 @@ export default function Wallet(){
                             parseFloat(document.getElementById("withdraw_amount").value), 
                             document.getElementById("withdraw_dest").value
                         )
-                        res.status? toast.success(res.message)
-                        : toast.error(`Error: ${res.message}`) 
+                        if (res.status){ 
+                            toast.success(res.message)
+                            setTimeout(() => {
+                                window.location.reload() 
+                              }, 3000) 
+                        } else { 
+                            toast.error(`Error: ${res.message}`)
+                         }
                         }catch(e){
                             console.log(e)
                         }
@@ -137,24 +167,39 @@ export default function Wallet(){
                     <label for="website-admin" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">By clicking, you will receive 10 CCD to your smart account</label>
 
                 <Button className="mt-3 max-w-sm mx-auto" onClick={
-                    async () =>{   
+                    async () =>{  
+                        setSpinners(true)
                         try{
                             if (localStorage.getItem("airdrop") !== null) {
                                 alert("You have recieved the airdrop previously and cannot receive it again")
+                                setSpinners(false)
                                 return;
                             }
                             const key = JSON.parse(window.localStorage.getItem("cis5-keypair"))
                             const response = await wallet.airdrop(key.publicKey)
-                            response.status ?
-                                toast.success(response.message)
-                                : toast.error(response.message) 
-                            localStorage.setItem("airdrop", "true")
+                            if (response.status){ 
+                                setSpinners(false)
+                                localStorage.setItem("airdrop", "true")
+                                toast.success(response.message) 
+                                setTimeout(() => {
+                                    window.location.reload() 
+                                  }, 1500) 
+                          
+                            } else { 
+                                toast.error(`Error: ${response.message}`) 
+                                setSpinners(false)
+                           } 
                         }catch(err){
                             console.log(err)
+                            setSpinners(false)
                         }
                                            
                     }
-                }>airdrop</Button>
+                }> {spinners ? (
+                    <div className="animate-spin spinner-border h-8 w-8 border-b-2 rounded-full"></div>
+                ) : (
+                    "airdrop"
+                )}</Button>
                 </TabPanel>
             </TabPanels>
             </Tabs>

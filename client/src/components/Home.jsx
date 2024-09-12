@@ -17,8 +17,7 @@ export default function Base(){
                SMART WALLET ACCOUNT
             </h1>
             <p className="mt-6 text-lg leading-8 text-gray-600">
-              This Application allows a user to create an account that that be used to send an recieve assets on the concordium network using the Cis5-Standard.
-            </p>
+            This Application allows a user to create an account to send and receive assets on the Concordium network using the Cis5-Standard.            </p>
             <div className="mt-10 flex items-center justify-center gap-x-6">
               <button
                 onClick={async ()=>{

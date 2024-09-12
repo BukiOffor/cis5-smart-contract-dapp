@@ -2070,6 +2070,7 @@ dependencies = [
  "concordium-smart-contract-testing",
  "concordium-std",
  "ed25519-dalek",
+ "primitive-types",
  "rand",
  "serde",
 ]
