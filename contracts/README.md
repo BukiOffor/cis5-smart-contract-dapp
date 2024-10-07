@@ -1,7 +1,7 @@
 # CIS5 SMART CONTRACT WALLET
 
 A smart contract wallet that can hold and transfer CCDs or CIS-2 tokens. 
-
+> Tutorial article can be found at [here](https://medium.com/@buki.offor/concordium-full-stack-smart-contract-account-tutorial-part-one-cdac8bcf0ff9)   
 ## SET UP
 
 ### Prerequisite
