@@ -26,5 +26,10 @@ npm run start
 ```
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result. if you have something running on port 3000, it switches to port 3001.
 
+
 ## Hosted Frontend Link
 [Live Wallet Application](https://cis5-smart-wallet-contract-dapp.vercel.app/)
+
+## Tutorial
+
+Tutorial article on medium can be found at [here](https://medium.com/@buki.offor/concordium-full-stack-smart-contract-account-tutorial-part-two-2aa6fb81f2b7)
